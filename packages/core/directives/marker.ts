@@ -59,6 +59,11 @@ export class AgmMarker implements OnDestroy, OnChanges, AfterContentInit {
   @Input() label: string;
 
   /**
+   * Data associated with this marker
+   */
+  @Input() data: any;
+
+  /**
    * If true, the marker can be dragged. Default value is false.
    */
   // tslint:disable-next-line:no-input-rename
@@ -203,7 +208,7 @@ export class AgmMarker implements OnDestroy, OnChanges, AfterContentInit {
     const mover =
         this._markerManager.createEventObservable<mapTypes.MouseEvent>('mouseover', this)
             .subscribe((e: mapTypes.MouseEvent) => {
-              this.mouseOver.emit(<MouseEvent>{coords: {lat: e.latLng.lat(), lng: e.latLng.lng()}});
+              this.mouseOver.emit(<MouseEvent>{data: this.data, marker: this, coords: {lat: e.latLng.lat(), lng: e.latLng.lng()}});
             });
     this._observableSubscriptions.push(mover);
 
