@@ -1,6 +1,5 @@
 import {Injectable, NgZone} from '@angular/core';
-import {Observable} from 'rxjs/Observable';
-import {Observer} from 'rxjs/Observer';
+import {Observable, Observer} from 'rxjs';
 
 import * as mapTypes from './google-maps-types';
 import {Polyline} from './google-maps-types';
@@ -25,10 +24,12 @@ export class GoogleMapsAPIWrapper {
   }
 
   createMap(el: HTMLElement, mapOptions: mapTypes.MapOptions): Promise<void> {
-    return this._loader.load().then(() => {
-      const map = new google.maps.Map(el, mapOptions);
-      this._mapResolver(<mapTypes.GoogleMap>map);
-      return;
+    return this._zone.runOutsideAngular( () => {
+      return this._loader.load().then(() => {
+        const map = new google.maps.Map(el, mapOptions);
+        this._mapResolver(<mapTypes.GoogleMap>map);
+        return;
+      });
     });
   }
 
@@ -58,8 +59,21 @@ export class GoogleMapsAPIWrapper {
    */
   createCircle(options: mapTypes.CircleOptions): Promise<mapTypes.Circle> {
     return this._map.then((map: mapTypes.GoogleMap) => {
+      if (typeof options.strokePosition === 'string') {
+        options.strokePosition = google.maps.StrokePosition[options.strokePosition];
+      }
       options.map = map;
       return new google.maps.Circle(options);
+    });
+  }
+
+  /**
+   * Creates a google.map.Rectangle for the current map.
+   */
+  createRectangle(options: mapTypes.RectangleOptions): Promise<mapTypes.Rectangle> {
+    return this._map.then((map: mapTypes.GoogleMap) => {
+      options.map = map;
+      return new google.maps.Rectangle(options);
     });
   }
 
@@ -71,7 +85,7 @@ export class GoogleMapsAPIWrapper {
     });
   }
 
-  createPolygon(options: mapTypes.PolygonOptions): Promise<mapTypes.Polyline> {
+  createPolygon(options: mapTypes.PolygonOptions): Promise<mapTypes.Polygon> {
     return this.getNativeMap().then((map: mapTypes.GoogleMap) => {
       let polygon = new google.maps.Polygon(options);
       polygon.setMap(map);
@@ -91,6 +105,32 @@ export class GoogleMapsAPIWrapper {
   }
 
   /**
+   * Creates a TransitLayer instance for a map
+   * @param {TransitLayerOptions} options - used for setting layer options
+   * @returns {Promise<TransitLayer>} a new transit layer object
+   */
+  createTransitLayer(options: mapTypes.TransitLayerOptions): Promise<mapTypes.TransitLayer>{
+    return this._map.then((map: mapTypes.GoogleMap) => {
+      let newLayer: mapTypes.TransitLayer = new google.maps.TransitLayer();
+      newLayer.setMap(options.visible ? map : null);
+      return newLayer;
+    });
+  }
+
+  /**
+   * Creates a BicyclingLayer instance for a map
+   * @param {BicyclingLayerOptions} options - used for setting layer options
+   * @returns {Promise<BicyclingLayer>} a new bicycling layer object
+   */
+  createBicyclingLayer(options: mapTypes.BicyclingLayerOptions): Promise<mapTypes.BicyclingLayer>{
+    return this._map.then((map: mapTypes.GoogleMap) => {
+      let newLayer: mapTypes.BicyclingLayer = new google.maps.BicyclingLayer();
+      newLayer.setMap(options.visible ? map : null);
+      return newLayer;
+    });
+  }
+
+  /**
    * Determines if given coordinates are insite a Polygon path.
    */
   containsLocation(latLng: mapTypes.LatLngLiteral, polygon: mapTypes.Polygon): Promise<boolean> {
@@ -98,10 +138,16 @@ export class GoogleMapsAPIWrapper {
   }
 
   subscribeToMapEvent<E>(eventName: string): Observable<E> {
-    return Observable.create((observer: Observer<E>) => {
+    return new Observable((observer: Observer<E>) => {
       this._map.then((m: mapTypes.GoogleMap) => {
         m.addListener(eventName, (arg: E) => { this._zone.run(() => observer.next(arg)); });
       });
+    });
+  }
+
+  clearInstanceListeners() {
+    this._map.then((map: mapTypes.GoogleMap) => {
+      google.maps.event.clearInstanceListeners(map);
     });
   }
 
@@ -113,6 +159,10 @@ export class GoogleMapsAPIWrapper {
 
   getBounds(): Promise<mapTypes.LatLngBounds> {
     return this._map.then((map: mapTypes.GoogleMap) => map.getBounds());
+  }
+
+  getMapTypeId(): Promise<mapTypes.MapTypeId> {
+    return this._map.then((map: mapTypes.GoogleMap) => map.getMapTypeId());
   }
 
   setZoom(zoom: number): Promise<void> {

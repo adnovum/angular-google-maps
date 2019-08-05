@@ -1,11 +1,12 @@
 import {Injectable, NgZone} from '@angular/core';
-import {Observable} from 'rxjs/Observable';
-import {Observer} from 'rxjs/Observer';
+import {Observable, Observer} from 'rxjs';
 
 import {AgmMarker} from './../../directives/marker';
 
 import {GoogleMapsAPIWrapper} from './../google-maps-api-wrapper';
 import {Marker} from './../google-maps-types';
+
+declare var google: any;
 
 @Injectable()
 export class MarkerManager {
@@ -13,6 +14,14 @@ export class MarkerManager {
       new Map<AgmMarker, Promise<Marker>>();
 
   constructor(protected _mapsWrapper: GoogleMapsAPIWrapper, protected _zone: NgZone) {}
+
+  async convertAnimation(uiAnim: 'BOUNCE' | 'DROP' | null): Promise<any>{
+    if (uiAnim === null) {
+      return null;
+    } else {
+      return this._mapsWrapper.getNativeMap().then(() => google.maps.Animation[uiAnim]);
+    }
+  }
 
   deleteMarker(marker: AgmMarker): Promise<void> {
     const m = this._markers.get(marker);
@@ -65,18 +74,26 @@ export class MarkerManager {
     return this._markers.get(marker).then((m: Marker) => m.setClickable(marker.clickable));
   }
 
+  async updateAnimation(marker: AgmMarker) {
+    const m = await this._markers.get(marker);
+    m.setAnimation(await this.convertAnimation(marker.animation));
+  }
+
   addMarker(marker: AgmMarker) {
-    const markerPromise = this._mapsWrapper.createMarker({
-      position: {lat: marker.latitude, lng: marker.longitude},
-      label: marker.label,
-      draggable: marker.draggable,
-      icon: marker.iconUrl,
-      opacity: marker.opacity,
-      visible: marker.visible,
-      zIndex: marker.zIndex,
-      title: marker.title,
-      clickable: marker.clickable
-    });
+
+    const markerPromise = new Promise<Marker>(async (resolve) =>
+     this._mapsWrapper.createMarker({
+        position: {lat: marker.latitude, lng: marker.longitude},
+        label: marker.label,
+        draggable: marker.draggable,
+        icon: marker.iconUrl,
+        opacity: marker.opacity,
+        visible: marker.visible,
+        zIndex: marker.zIndex,
+        title: marker.title,
+        clickable: marker.clickable,
+        animation: await this.convertAnimation(marker.animation)
+      }).then(resolve));
     this._markers.set(marker, markerPromise);
   }
 
@@ -85,7 +102,7 @@ export class MarkerManager {
   }
 
   createEventObservable<T>(eventName: string, marker: AgmMarker): Observable<T> {
-    return Observable.create((observer: Observer<T>) => {
+    return new Observable((observer: Observer<T>) => {
       this._markers.get(marker).then((m: Marker) => {
         m.addListener(eventName, (e: T) => this._zone.run(() => observer.next(e)));
       });
