@@ -5,6 +5,7 @@ import {AgmMarker} from '../../../core/directives/marker';
 import {GoogleMapsAPIWrapper} from '../../../core/services/google-maps-api-wrapper';
 import {AgmMarkerCluster} from '../../directives/marker-cluster';
 import {ClusterManager} from './cluster-manager';
+import {MarkerClustererInstance} from '@agm/js-marker-clusterer/services/google-clusterer-types';
 
 describe('ClusterManager', () => {
   beforeEach(() => {
@@ -214,7 +215,7 @@ describe('ClusterManager', () => {
         [ClusterManager],
         async (markerManager: ClusterManager) => {
 
-          const mockClusterer = { setCalculator: jest.fn() };
+          const mockClusterer = { setCalculator: jest.fn() } as any as MarkerClustererInstance;
           const instancePromise = Promise.resolve(mockClusterer);
 
           const spy = jest.spyOn(markerManager, 'getClustererInstance')
