@@ -70,11 +70,6 @@ export class AgmMarker implements OnDestroy, OnChanges, AfterContentInit, FitBou
   @Input() data: any;
 
   /**
-   * Data associated with this marker
-   */
-  @Input() data: any;
-
-  /**
    * If true, the marker can be dragged. Default value is false.
    */
   // tslint:disable-next-line:no-input-rename
